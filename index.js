@@ -95,6 +95,40 @@ app.post('/login', (req, res) => {
       }
     );
   });
+  
+// Rute untuk mendapatkan informasi pengguna berdasarkan username
+app.get('/users/:username', verifyToken, (req, res) => {
+    const { username } = req.params;
+  
+    // Query database to get user data based on username
+    connection.query(
+      'SELECT * FROM user WHERE username = ?',
+      [username],
+      (err, results) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ message: 'Terjadi kesalahan server' });
+        }
+  
+        if (results.length === 0) {
+          return res.status(404).json({ message: 'Pengguna tidak ditemukan' });
+        }
+  
+        const user = results[0];
+        res.status(200).json({
+          username: user.username,
+          nama: user.nama,
+          email: user.email,
+          kelamin: user.kelamin,
+          usia: user.usia,
+          berat: user.berat,
+          tinggi: user.tinggi,
+          penyakit: user.penyakit,
+          id: user.id,
+        });
+      }
+    );
+  });
 
 app.delete('/delete/:username', (req, res) => {
   const { username } = req.params;
