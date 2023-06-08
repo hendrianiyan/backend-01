@@ -9,7 +9,22 @@ app.use(bodyParser.json());
 
 // Simulasi penyimpanan data pengguna
 const users = []; // Menyimpan data pengguna sementara dalam array
-
+const verifyToken = (req, res, next) => {
+    const token = req.headers['authorization'];
+  
+    if (!token) {
+      return res.status(401).json({ message: 'Token tidak ditemukan' });
+    }
+  
+    jwt.verify(token, 'rahasia', (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ message: 'Token tidak valid' });
+      }
+  
+      req.decoded = decoded;
+      next();
+    });
+  };
 // Rute registrasi pengguna
 app.post('/register', (req, res) => {
   const { username,nama, email, password, kelamin, usia, berat, tinggi, penyakit } = req.body;
@@ -72,41 +87,14 @@ app.post('/login', (req, res) => {
           }
   
           // Buat token otentikasi menggunakan JSON Web Token (JWT)
-          const token = jwt.sign({ username: user.username }, 'rahasia', { expiresIn: '1h' });
+          const token = jwt.sign({ username: user.username }, 'rahasia', { expiresIn: '3h' });
   
-          // Kirim respons dengan nama pengguna
+          // Kirim respons dengan nama pengguna dan token
           res.status(200).json({ message: 'Login berhasil', nama: user.nama, token });
         });
       }
     );
   });
-  
-  
-
-
-// Rute untuk mendapatkan informasi pengguna berdasarkan username
-app.get('/users/:username', (req, res) => {
-  const { username } = req.params;
-
-  // Query database untuk mendapatkan data pengguna berdasarkan username
-  connection.query(
-    'SELECT * FROM user WHERE username = ?',
-    [username],
-    (err, results) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ message: 'Terjadi kesalahan server' });
-      }
-
-      if (results.length === 0) {
-        return res.status(404).json({ message: 'Pengguna tidak ditemukan' });
-      }
-
-      const user = results[0];
-      res.status(200).json({username:user.username,nama:user.nama,email:user.email,kelamin:user.kelamin,usia:user.usia,berat:user.berat,tinggi:user.tinggi,penyakit:user.penyakit,id:user.id});
-    }
-  );
-});
 
 app.delete('/delete/:username', (req, res) => {
   const { username } = req.params;
