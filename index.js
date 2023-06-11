@@ -173,7 +173,16 @@ app.put('/update/:username', (req, res) => {
 
 
 
-// Jalankan server pada port 3000
-app.listen(3000, () => {
-  console.log('Server berjalan pada port 3000');
-});
+// // Jalankan server pada port 3000
+// app.listen(3000, () => {
+//   console.log('Server berjalan pada port 3000');
+// });
+
+const NODE_ENV = process.env.NODE_ENV || 'development'
+const HOST = process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0'
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, HOST,  () => {
+  console.log(`NODE_ENV=${NODE_ENV}`);
+  console.log(`App listening on http://${HOST}:${PORT}`);
+})
