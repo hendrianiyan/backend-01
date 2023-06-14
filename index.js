@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const connection = require('./database/database');
-const tf = require('tensorflow');
+// const tf = require('tensorflow');
 
 const app = express();
 app.use(bodyParser.json());
@@ -11,24 +11,27 @@ app.use(bodyParser.json());
 // Simulasi penyimpanan data pengguna
 const users = []; // Menyimpan data pengguna sementara dalam array
 const verifyToken = (req, res, next) => {
-    const token = req.headers['authorization'];
-  
-    if (!token) {
-      return res.status(401).json({ message: 'Token tidak ditemukan' });
+  const token = req.headers['authorization'];
+
+  if (!token) {
+    return res.status(401).json({ message: 'Token tidak ditemukan' });
+  }
+
+  const tokenValue = token.split(' ')[1];
+
+  jwt.verify(tokenValue, 'rahasia', (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ message: 'Token tidak valid' });
     }
-  
-    jwt.verify(token, 'rahasia', (err, decoded) => {
-      if (err) {
-        return res.status(401).json({ message: 'Token tidak valid' });
-      }
-  
-      req.decoded = decoded;
-      next();
-    });
-  };
+
+    req.decoded = decoded;
+    next();
+  });
+};
+
 // Rute registrasi pengguna
 app.post('/register', (req, res) => {
-  const { username,nama, email, password, kelamin, usia, berat, tinggi, penyakit } = req.body;
+  const { username,nama, email, password, kelamin, usia, berat, tinggi, penyakit, aktivitas } = req.body;
 
   // Periksa apakah pengguna dengan username tersebut sudah terdaftar
   const existingUser = users.find(user => user.username === username);
@@ -41,8 +44,8 @@ app.post('/register', (req, res) => {
 
   // Simpan data pengguna ke dalam database
   connection.query(
-    'INSERT INTO user (username, nama, email, password, kelamin, usia, berat, tinggi, penyakit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [username,nama, email, hashedPassword, kelamin, usia, berat, tinggi, penyakit],
+    'INSERT INTO user (username, nama, email, password, kelamin, usia, berat, tinggi, penyakit, aktivitas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [username,nama, email, hashedPassword, kelamin, usia, berat, tinggi, penyakit, aktivitas],
     (err, results) => {
       if (err) {
         console.error(err);
@@ -98,7 +101,8 @@ app.post('/login', (req, res) => {
   });
 
 
-app.delete('/delete/:username', (req, res) => {
+app.delete('/delete/:username', verifyToken, (req, res) => {
+  const token = req.headers['authorization'].split(' ')[1];
   const { username } = req.params;
 
   // Periksa apakah pengguna dengan username dan email tersebut ada di database
@@ -123,6 +127,7 @@ app.delete('/delete/:username', (req, res) => {
 
 
 app.put('/update/:username', (req, res) => {
+    const token = req.headers['authorization'].split(' ')[1];
     const { username } = req.params;
   
     // Dapatkan data yang akan diupdate dari body permintaan
@@ -168,36 +173,36 @@ app.put('/update/:username', (req, res) => {
     );
   });
   
-app.get('/load-model', (req, res) => {
-  const modelPath = './model.h5';
-  tf.loadLayersModel(modelPath)
-    .then((model) => {
-      // Lakukan operasi atau prediksi menggunakan model yang dimuat
-      // Contoh:
-      const input = tf.tensor2d([[1, 2, 3]]);
-      const output = model.predict(input);
-      res.json({ result: output.dataSync() });
-    })
-    .catch((error) => {
-      res.status(500).json({ error: error.message });
-    });
-});
-  
-  
-
-
-
-
-// // Jalankan server pada port 3000
-// app.listen(3000, () => {
-//   console.log('Server berjalan pada port 3000');
+// app.get('/load-model', (req, res) => {
+//   const modelPath = './model.h5';
+//   tf.loadLayersModel(modelPath)
+//     .then((model) => {
+//       // Lakukan operasi atau prediksi menggunakan model yang dimuat
+//       // Contoh:
+//       const input = tf.tensor2d([[1, 2, 3]]);
+//       const output = model.predict(input);
+//       res.json({ result: output.dataSync() });
+//     })
+//     .catch((error) => {
+//       res.status(500).json({ error: error.message });
+//     });
 // });
+  
+  
 
-const NODE_ENV = process.env.NODE_ENV || 'development'
-const HOST = process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0'
-const PORT = process.env.PORT || 3000
 
-app.listen(PORT, HOST,  () => {
-  console.log(`NODE_ENV=${NODE_ENV}`);
-  console.log(`App listening on http://${HOST}:${PORT}`);
-})
+
+
+// Jalankan server pada port 3000
+app.listen(3000, () => {
+  console.log('Server berjalan pada port 3000');
+});
+
+// const NODE_ENV = process.env.NODE_ENV || 'development'
+// const HOST = process.env.NODE_ENV !== 'production' ? 'localhost' : '0.0.0.0'
+// const PORT = process.env.PORT || 3000
+
+// app.listen(PORT, HOST,  () => {
+//   console.log(`NODE_ENV=${NODE_ENV}`);
+//   console.log(`App listening on http://${HOST}:${PORT}`);
+// })
