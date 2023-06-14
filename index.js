@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const connection = require('./database/database');
+const tf = require('tensorflow');
 
 const app = express();
 app.use(bodyParser.json());
@@ -167,6 +168,20 @@ app.put('/update/:username', (req, res) => {
     );
   });
   
+app.get('/load-model', (req, res) => {
+  const modelPath = './model.h5';
+  tf.loadLayersModel(modelPath)
+    .then((model) => {
+      // Lakukan operasi atau prediksi menggunakan model yang dimuat
+      // Contoh:
+      const input = tf.tensor2d([[1, 2, 3]]);
+      const output = model.predict(input);
+      res.json({ result: output.dataSync() });
+    })
+    .catch((error) => {
+      res.status(500).json({ error: error.message });
+    });
+});
   
   
 
