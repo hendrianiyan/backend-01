@@ -60,45 +60,46 @@ app.post('/register', (req, res) => {
 
 // Rute login pengguna
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-  
-    // Periksa apakah pengguna dengan username tersebut ada di database
-    connection.query(
-      'SELECT * FROM user WHERE username = ?',
-      [username],
-      (err, results) => {
+  const { username, password } = req.body;
+
+  // Periksa apakah pengguna dengan username tersebut ada di database
+  connection.query(
+    'SELECT * FROM user WHERE username = ?',
+    [username],
+    (err, results) => {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ message: 'Terjadi kesalahan server' });
+      }
+
+      // Periksa apakah pengguna ditemukan
+      if (results.length === 0) {
+        return res.status(401).json({ message: 'Username atau password salah' });
+      }
+
+      const user = results[0];
+
+      // Periksa kecocokan password
+      bcrypt.compare(password, user.password, (err, isMatch) => {
         if (err) {
           console.error(err);
           return res.status(500).json({ message: 'Terjadi kesalahan server' });
         }
-  
-        // Periksa apakah pengguna ditemukan
-        if (results.length === 0) {
+
+        if (!isMatch) {
           return res.status(401).json({ message: 'Username atau password salah' });
         }
-  
-        const user = results[0];
-  
-        // Periksa kecocokan password
-        bcrypt.compare(password, user.password, (err, isMatch) => {
-          if (err) {
-            console.error(err);
-            return res.status(500).json({ message: 'Terjadi kesalahan server' });
-          }
-  
-          if (!isMatch) {
-            return res.status(401).json({ message: 'Username atau password salah' });
-          }
-  
-          // Buat token otentikasi menggunakan JSON Web Token (JWT)
-          const token = jwt.sign({ username: user.username }, 'rahasia', { expiresIn: '3h' });
-  
-          // Kirim respons dengan nama pengguna dan token
-          res.status(200).json({ message: 'Login berhasil', username:user.username, nama: user.nama,email:user.email,kelamin:user.kelamin,usia:user.usia,berat:user.berat,tinggi:user.tinggi,penyakit:user.penyakit,aktivitas:user.aktivitas, token });
-        });
-      }
-    );
-  });
+
+        // Buat token otentikasi menggunakan JSON Web Token (JWT) tanpa durasi
+        const token = jwt.sign({ username: user.username }, 'rahasia');
+
+        // Kirim respons dengan nama pengguna dan token
+        res.status(200).json({ message: 'Login berhasil', username:user.username, nama: user.nama,email:user.email,kelamin:user.kelamin,usia:user.usia,berat:user.berat,tinggi:user.tinggi,penyakit:user.penyakit,aktivitas:user.aktivitas, token });
+      });
+    }
+  );
+});
+
 
 
 app.delete('/delete/:username', verifyToken, (req, res) => {
