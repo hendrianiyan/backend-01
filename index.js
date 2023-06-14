@@ -94,7 +94,7 @@ app.post('/login', (req, res) => {
           const token = jwt.sign({ username: user.username }, 'rahasia', { expiresIn: '3h' });
   
           // Kirim respons dengan nama pengguna dan token
-          res.status(200).json({ message: 'Login berhasil', nama: user.nama, token });
+          res.status(200).json({ message: 'Login berhasil', username:user.username, nama: user.nama,email:user.email,kelamin:user.kelamin,usia:user.usia,berat:user.berat,tinggi:user.tinggi,penyakit:user.penyakit,aktivitas:user.aktivitas, token });
         });
       }
     );
