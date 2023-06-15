@@ -1,90 +1,82 @@
 import pandas as pd
 import numpy as np
 import tensorflow as tf
-import seaborn as sns
-import matplotlib.pyplot as plt
-from tensorflow import keras
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import MinMaxScaler
+from flask import Flask, request, jsonify
+from tensorflow.keras.models import load_model
+import h5py
+import json
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 from tensorflow.keras.layers import Input, Dense
 from tensorflow.keras.models import Model
-from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-import h5py
-import shutil
-from flask import Flask, request, jsonify
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-app = Flask(__name__)
+app = Flask(_name_)
 
-@app.route('/', methods=['POST'])
+# Load the human data autoencoder model
+human_autoencoder = load_model('model_human.h5')
+human_hidden_representation = tf.keras.models.Model(inputs=human_autoencoder.input,
+                                                    outputs=human_autoencoder.get_layer('dense_11').output)
+
+# Load the food data autoencoder model
+food_autoencoder = load_model('model_food.h5')
+food_hidden_representation = tf.keras.models.Model(inputs=food_autoencoder.input,
+                                                   outputs=food_autoencoder.get_layer('dense_11').output)
+
+# Load the human clustering model
+human_clustering_model = load_model('prediction_model.h5')
+
+# Load the food recommendation pairing
+with open('food_recom.json', 'r') as json_file:
+    food_recom = json.load(json_file)
+
+
+@app.route('/predict', methods=['POST'])
 def predict():
-    # Read input data from request
-    data = request.json
-    input_data = pd.DataFrame(data, index=[0])
-    
-    # Load the pre-trained model and necessary data
-    autoencoder = tf.keras.models.load_model('model_human.h5')
-    with h5py.File('X_tensor.h5', 'r') as hf:
-        X_tensor = hf['human_tensor'][:]
-    hidden_representation = Model(inputs=autoencoder.input, outputs=autoencoder.layers[2].output)
-    
-    # Preprocess input data
-    ordinal_columns = ['jenis_aktivitas', 'kolesterol', 'asam_lambung', 'diabetes_tipe_1', 'diabetes_tipe_2',
-                       'darah_tinggi', 'darah_rendah', 'usus_buntu']
-    onehot_columns = ['jenis_kelamin']
-    input_data.rename(columns={
-        " No ": "no",
-        " Jenis Kelamin ": "jenis_kelamin",
-        " Usia ": "usia",
-        " Berat (kg) ": "berat(kg)",
-        " Tinggi (cm) ": "tinggi(cm)",
-        " Jenis Aktivitas ": "jenis_aktivitas",
-        " Kolesterol ": "kolesterol",
-        " Asam Lambung ": "asam_lambung",
-        " Diabetes Tipe 1 ": "diabetes_tipe_1",
-        " Diabetes Tipe 2 ": "diabetes_tipe_2",
-        " Darah Tinggi ": "darah_tinggi",
-        " Darah Rendah ": "darah_rendah",
-        " Usus Buntu ": "usus_buntu"
-    }, inplace=True)
-    input_data = pd.get_dummies(input_data, columns=onehot_columns)
-    
-    for col in ordinal_columns:
-        input_data[col] = LabelEncoder().fit_transform(input_data[col])
-    
-    input_data = pd.DataFrame(scaler.transform(input_data), columns=input_data.columns)
-    input_tensor = tf.convert_to_tensor(input_data.values, dtype=tf.float32)
-    
-    # Generate recommendations
-    encoded_data = hidden_representation.predict(input_tensor)
-    cluster_labels = kmeans.predict(encoded_data)
-    recommended_foods = food_recom[cluster_labels[0]]
-    
-    # Prepare response
-    response = {'recommended_foods': recommended_foods}
+    data = request.get_json()
+
+    # Process human data
+    human_data = pd.DataFrame(data)
+    human_data.drop('no', axis=1, inplace=True)
+    human_data = human_data.replace({'?': np.nan}).dropna()
+    human_data = human_data.astype(float)
+
+    # Normalize human data
+    scaler = MinMaxScaler()
+    human_data = pd.DataFrame(scaler.fit_transform(human_data), columns=human_data.columns)
+
+    # Encode human data
+    human_encoded = human_hidden_representation.predict(human_data)
+
+    # Perform human clustering
+    human_labels = human_clustering_model.predict_classes(human_data)
+
+    # Process food data
+    food_data = pd.DataFrame(data['makanan'])
+
+    # Normalize food data
+    food_data = food_data.apply(pd.to_numeric, errors='coerce')
+    food_data = food_data.dropna()
+    food_data = pd.DataFrame(scaler.transform(food_data), columns=food_data.columns)
+
+    # Encode food data
+    food_encoded = food_hidden_representation.predict(food_data)
+
+    # Perform food clustering
+    food_labels = food_clustering_model.predict(food_data)
+
+    # Get food recommendations based on human cluster
+    recommendations = food_recom[human_labels[0]]
+
+    response = {
+        'human_cluster': int(human_labels[0]),
+        'food_cluster': int(food_labels[0]),
+        'recommendations': recommendations
+    }
+
     return jsonify(response)
 
-if __name__ == '__main__':
-    app.run()
 
-
-#Make sure to have the following files in the same directory as main.py:
-
-#model_human.h5 - Pre-trained autoencoder model for human data
-#X_tensor.h5 - Tensor data for clustering human data
-#food_recom.json - JSON file containing the food recommendations for each cluster
-#You can deploy this code on Google Cloud Run using the following command:
-
-
-#gcloud run deploy --image gcr.io/[PROJECT-ID]/[IMAGE-NAME] --platform managed
-
-#Replace [PROJECT-ID] with your Google Cloud project ID and [IMAGE-NAME] with the desired name for your container image.
-
-#Note: The code provided assumes that you have the necessary data files (model_human.h5, X_tensor.h5, food_recom.json) in the same directory as main.py. Adjust the paths accordingly if the files are located in different directories.
-
-#Also, ensure that you have installed the required dependencies (pandas, numpy, tensorflow, seaborn, matplotlib, flask) in your environment.
-
-#Let me know if you need further assistance!
+if _name_ == '_main_':
+    app.run(debug=True)
